@@ -11,19 +11,19 @@ function pix2ll, pixel ,res, coord, result, all=all
     ;     result=pix2ll(pixel, res, coord)    
     ;
     ; INPUT:
-    ;     pixel - Pixel number
-    ;     resolution - Quad-cube resolution
-    ;     coord - output coordinate system
-    ;
+    ;     pixel - Int. Pixel number
+    ;     resolution - Int. Quad-cube resolution
+    ;     coord - Str. output coordinate system
+    ;     /all - Keyword.
+    ;     
     ; OUTPUT:
-    ;     result - Longitude and Latitude of center of pixel in 
+    ;     result - Array. Longitude and Latitude of center of pixel in 
     ;                 the specified coordinate system. If /all 
     ;                 keyword is chosen, an array of 5 elements
     ;                 is returned: [lon, lat, x, y, face_no]
     ;
     ; SUBROUTINES CALLED:
-    ;     PIXEL_VECTOR, FORWARD_CUBE, XYAXIS, UV2ll, 
-    ;     CONV_E2G, CONV_E2Q, EULER     
+    ;     PIXEL_VECTOR, FORWARD_CUBE, XYAXIS, UV2ll, EULER     
     ;
     ; REVISION HISTORY:
     ;     Adapted from the FORTRAN script in COBE-DIRBE Explanatory 
