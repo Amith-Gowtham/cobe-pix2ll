@@ -1,24 +1,25 @@
 #=====================================================================
 # PIX2LL (w/ dependancies)
 #      PURPOSE:
-#          Routine returns longitude and latitude pointing to center 
+#          This routine returns longitude and latitude pointing to center 
 #          of pixel from COBE Quadrilaterised Spherical Cube given pixel 
-#          number and resolution of the cube and end coordinate system. 
-#          Note: all coordintes are at epoch=J2000.
+#          number, cube resolution and end coordinate system. 
 #          Additionally the spherical quadrilateralized cube face, 
-#          x, y positions can be returned if necessary.
+#          x, y positions and face number can be returned if necessary.
 #          
 #      CALLING SEQUENCE: 
 #          result=pix2ll(pixel, res, coord, nerd)    
 #     
 #      INPUT:
-#          pixel - Pixel number
-#          resolution - Quad-cube resolution (Note: 6 for DMR/FIRAS 
-#                       and 9 for DIRBE. ^ is working for some effin 
-#                       reason)
-#          coord - output coordinate system
-#          nerd - When set to 1, returns face number and pixels 
-#                 (x, y) coords        
+#          pixel - Int. Pixel number
+#          resolution - INt. Quad-cube resolution (Note: 6 for DMR/FIRAS 
+#                       and 9 for DIRBE)
+#          coord - String. output coordinate system
+#                  'E' or 'e': Geocentric True Ecliptic (default) 
+#                  'Q' or 'q': Equatorial (ICRS) 
+#                  'G' or 'g': Galactic. J2000. 
+#          nerd - Int. When set to 1, returns face number and pixels 
+#                 (x, y) coords. Takes 0 or 1. Default 0        
 #     
 #      OUTPUT:
 #          result - Longitude and Latitude of center of pixel in 
@@ -26,9 +27,8 @@
 #                      keyword is chosen, an array of 5 elements
 #                      is returned: [lon, lat, x, y, face_no]
 #     
-#      SUBROUTINES CALLED:
-#          PIXEL_VECTOR, FORWARD_CUBE, XYAXIS, UV2ll, 
-#          CONV_E2G, CONV_E2Q, EULER     
+#      LIBRARIES USED:
+#          NUMPY, ASTROPY 
 #     
 #      REVISION HISTORY:
 #          Adapted from the FORTRAN script in COBE-DIRBE Explanatory 
@@ -37,6 +37,8 @@
 #=====================================================================
 
 from numpy import *
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 
 def fc(x, y):
 # ============================================================
@@ -148,43 +150,39 @@ def pix2ll(pixel, res, coord, nerd):
         vec=vec/norm_inv
     else:
         print("Err: PIX2LL: Unit vector normalisation is 0")
+# Finding Longitude
+    if vec[0] == 0 and vec[1] == 0:
+        lon = 0.0
+    else:
+        lon = double(180.0/pi)*arctan2(vec[1], vec[0])
+    if lon < 0.0: lon = lon+360.0    
+
+# Finding Latitude  
+    lat = arctan2(vec[2], sqrt(vec[0]**2.0 + vec[1]**2.0))
+    lat = lat*double(180.0/pi)  
+
+    lonlat = SkyCoord(lon=lon*u.degree, lat=lat*u.degree, frame='geocentrictrueecliptic')
+
 # Converting to Equatorial or Galactic if necessary      
     match coord:
         case 'E' | 'e':
-            outv = vec
+            a, b = lon, lat
         case 'Q' | 'q':
-            T = matrix([[1.0, 0.0, 0.0], 
-                        [0.0, -0.12233766697444722, 0.9924885365782565], 
-                        [0.0, -0.9924885365782565, -0.12233766697444722]])
-            outv = T*vec    
+            radec = lonlat.transform_to('icrs')
+            a, b = float(radec.ra/u.degree), float(radec.dec/u.degree)
         case 'G' | 'g':
-            T = matrix([[-0.72429045, -0.58452707,  0.36569311],
-                [ 0.06738121,  0.4678336,   0.88124429],
-                [-0.68619467,  0.66291766, -0.29946127]])
-            outv = T*vec       
+            lb = lonlat.transform_to('galactic')
+            a, b = float(lb.l/u.degree), float(lb.b/u.degree)       
         case _:
             print("ERR: PIX2LL: Incorrect CoordSys Choice")  
             print("ERR: PIX2LL: Choose 'G' or'g' for Galactic System")    
             print("ERR: PIX2LL: Choose 'E' or'E' for Ecliptic System")  
-            print("ERR: PIX2LL: Choose 'Q' or'q' for Equatorial System")               
-    outv = array(outv)
+            print("ERR: PIX2LL: Choose 'Q' or'q' for Equatorial System")      
 
-# Finding Longitude
-    if outv[0] == 0 and outv[1] == 0:
-        lon = 0.0
-    else:
-        lon = double(180.0/pi)*arctan2(outv[1], outv[0])
-    if lon < 0.0: lon = lon+360.0    
-
-# Finding Latitude  
-    lat = arctan2(outv[2], sqrt(outv[0]**2.0 + outv[1]**2.0))
-    lat = lat*double(180.0/pi)
-
-
-    if (nerd == 1): result=[lon, lat, x, y, face]
-    else: result=[lon, lat]
+    if (nerd == 1): result=[a, b, x, y, face]
+    else: result=[a, b]
 
     return result
 
 #Driver code
-print(pix2ll(3, 6, 'E', 1))
+print(pix2ll(3, 6, 'e', 1))
